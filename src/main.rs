@@ -3,6 +3,14 @@ use crate::game::{Game};
 mod game;
 
 fn main() {
-	let game = Game::new(String::from("lol"), String::from("kek"));
-    println!("{:?}", game.player1);
+	let game = Game::start();
+	
+	loop {
+		game.player1.make_move(&mut game);
+		game.player2.make_move(&mut game);
+		match game.end_move() {
+			None => (),
+			_ => break,
+		}
+	}
 }
