@@ -19,6 +19,18 @@ pub struct Player {
 }
 
 impl Player {
+    pub fn new() -> Player {
+        // getting user input
+        let mut name = String::new();
+        io::stdin().lock().read_line(&mut name).unwrap();
+
+        Player {
+            name: name,
+            marbles_amount: 100,
+            role: None,
+        }
+    }
+
     pub fn make_move(&self, game: &mut Game) {
         match self.role {
             Some(PlayerRole::Riddler) => self.make_move_as_riddler(game),
@@ -96,44 +108,22 @@ pub enum Parety {
 
 #[derive(Debug)]
 pub struct Game<'p> {
-    pub player1: &'p Player,
-    pub player2: &'p Player,
+    pub player1: &'p mut Player,
+    pub player2: &'p mut Player,
     parety: Option<Parety>,
     guessed_parety: Option<Parety>,
     bet: Option<MarblesAmount>,
 }
 
 impl<'p> Game<'p> {
-    pub fn start() -> (Player, Player, Game<'p>) {
-        // getting user input
-        let mut player_1_name = String::new();
-        io::stdin().lock().read_line(&mut player_1_name).unwrap();
-
-        // getting user input
-        let mut player_2_name = String::new();
-        io::stdin().lock().read_line(&mut player_2_name).unwrap();
-
-        let player1 = Player {
-            name: player_1_name,
-            marbles_amount: INIT_MARBLES_AMOUNT,
-            role: Some(PlayerRole::Riddler),
-        };
-        let player2 = Player {
-            name: player_2_name,
-            marbles_amount: INIT_MARBLES_AMOUNT,
-            role: Some(PlayerRole::Guesser),
-        };
-        (
-            player1,
-            player2,
-            Game {
-                player1: &player1,
-                player2: &player2,
-                parety: None,
-				guessed_parety: None,
-				bet: None,
-            },
-        )
+    pub fn start(player1: &'p mut Player, player2: &'p mut Player) -> Game<'p> {
+        Game {
+            player1: player1,
+            player2: player2,
+            parety: None,
+            guessed_parety: None,
+            bet: None,
+        }
     }
 
     /// Defining a winner and a looser and taking a bet transfer from the looser to the winner
@@ -141,17 +131,17 @@ impl<'p> Game<'p> {
         // defining who is riddler and who is guesser
         let (riddler, guesser) = match (&self.player1.role, &self.player2.role) {
             (Some(PlayerRole::Riddler), Some(PlayerRole::Guesser)) => {
-                (&mut self.player1, &mut self.player2)
+                (self.player1, self.player2)
             }
             (Some(PlayerRole::Guesser), Some(PlayerRole::Riddler)) => {
-                (&mut self.player2, &mut self.player1)
+                (self.player2, self.player1)
             }
             _ => panic!("Ya dumba, some player has no his role!"),
         };
 
         // defining a winner and a looser
-        let mut winner: &mut Player;
-        let mut looser: &mut Player;
+        let mut winner: &Player;
+        let mut looser: &Player;
         match &self.parety {
             Some(parety) => match &self.guessed_parety {
                 Some(guessed_parety) => {
@@ -195,6 +185,6 @@ impl<'p> Game<'p> {
 }
 
 struct EndGameResult<'p> {
-    winner: &'p mut Player,
-    looser: &'p mut Player,
+    winner: &'p Player,
+    looser: &'p Player,
 }
