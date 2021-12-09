@@ -94,24 +94,24 @@ pub enum Parety {
     Odd,
 }
 
-#[derive(Debug, Default)]
-pub struct Game {
-    pub player1: Player,
-    pub player2: Player,
+#[derive(Debug)]
+pub struct Game<'p> {
+    pub player1: &'p Player,
+    pub player2: &'p Player,
     parety: Option<Parety>,
     guessed_parety: Option<Parety>,
     bet: Option<MarblesAmount>,
 }
 
-impl Game {
-    pub fn start() -> Game {
-		// getting user input
-		let mut player_1_name = String::new();
-		io::stdin().lock().read_line(&mut player_1_name).unwrap();
+impl<'p> Game<'p> {
+    pub fn start() -> (Player, Player, Game<'p>) {
+        // getting user input
+        let mut player_1_name = String::new();
+        io::stdin().lock().read_line(&mut player_1_name).unwrap();
 
-		// getting user input
-		let mut player_2_name = String::new();
-		io::stdin().lock().read_line(&mut player_2_name).unwrap();
+        // getting user input
+        let mut player_2_name = String::new();
+        io::stdin().lock().read_line(&mut player_2_name).unwrap();
 
         let player1 = Player {
             name: player_1_name,
@@ -123,11 +123,17 @@ impl Game {
             marbles_amount: INIT_MARBLES_AMOUNT,
             role: Some(PlayerRole::Guesser),
         };
-        Game {
+        (
             player1,
             player2,
-            ..Default::default()
-        }
+            Game {
+                player1: &player1,
+                player2: &player2,
+                parety: None,
+				guessed_parety: None,
+				bet: None,
+            },
+        )
     }
 
     /// Defining a winner and a looser and taking a bet transfer from the looser to the winner
