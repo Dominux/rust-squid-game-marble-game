@@ -100,7 +100,7 @@ impl Game {
                 .as_str(),
             ));
         }
-        let parity = Parity::from_string(guessed_parity)?;
+        let guessed_parity = Parity::from_string(guessed_parity)?;
 
         match self.state {
             State::PendingBoth => self.state = State::PendingRiddler,
@@ -108,7 +108,7 @@ impl Game {
             _ => return Err(ValidationError::new("It is not the guesser move's time")),
         }
 
-        self.guessed_parity = Some(parity);
+        self.guessed_parity = Some(guessed_parity);
         self.bet = Some(bet);
         Ok(())
     }
