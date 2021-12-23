@@ -1,8 +1,4 @@
-use std::{
-    error,
-    fmt::{self},
-    mem::{self, swap},
-};
+use std::{error, fmt, mem};
 
 pub struct Player {
     pub name: String,
@@ -78,9 +74,15 @@ impl Game {
     ) -> Result<(), ValidationError> {
         // Validation
         let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
-            [self.player1.as_ref().unwrap(), self.player2.as_ref().unwrap()]
+            [
+                self.player1.as_ref().unwrap(),
+                self.player2.as_ref().unwrap(),
+            ]
         } else {
-            [self.player2.as_ref().unwrap(), self.player1.as_ref().unwrap()]
+            [
+                self.player2.as_ref().unwrap(),
+                self.player1.as_ref().unwrap(),
+            ]
         };
         if bet > guesser.marbles_amount {
             return Err(ValidationError::new(
@@ -147,7 +149,7 @@ impl Game {
         }
 
         // Setting roles
-		swap(&mut winner.role, &mut looser.role);
+        mem::swap(&mut winner.role, &mut looser.role);
         self.player1 = Some(winner);
         self.player2 = Some(looser);
 
