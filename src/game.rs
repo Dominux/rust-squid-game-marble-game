@@ -1,4 +1,6 @@
-use std::{error, fmt, mem};
+use std::{mem, error};
+
+use crate::errors::{ValidationError, WrongStateError};
 
 pub struct Player {
     pub name: String,
@@ -40,7 +42,7 @@ impl Game {
         }
     }
 
-    pub fn riddler_move(&mut self, marbles_amount: usize) -> Result<(), ValidationError> {
+    pub fn riddler_move(&mut self, marbles_amount: usize) -> Result<(), impl error::Error> {
         // Validation
         let riddler = if matches!(self.player1.as_ref().unwrap().role, Role::Riddler) {
             self.player1.as_ref().unwrap()
@@ -60,7 +62,7 @@ impl Game {
         match self.state {
             State::PendingBoth => self.state = State::PendingGuesser,
             State::PendingRiddler => self.state = State::ReadyToDecision,
-            _ => return Err(ValidationError::new("It is not the riddler move's time")),
+            _ => return Err(WrongStateError::new("It is not the riddler move's time")),
         }
 
         self.riddler_parity = Some(Parity::from_number(marbles_amount));
@@ -107,7 +109,7 @@ impl Game {
         match self.state {
             State::PendingBoth => self.state = State::PendingRiddler,
             State::PendingGuesser => self.state = State::ReadyToDecision,
-            _ => return Err(ValidationError::new("It is not the guesser move's time")),
+            _ => return Err(WrongStateError::new("It is not the guesser move's time")),
         }
 
         self.guessed_parity = Some(guessed_parity);
@@ -115,9 +117,11 @@ impl Game {
         Ok(())
     }
 
-    pub fn decision_move(&mut self) -> Result<(), ()> {
+    pub fn decision_move(&mut self) -> Result<(), impl error::Error> {
         if !matches!(self.state, State::ReadyToDecision) {
-            return Err(());
+            return Err(WrongStateError::new(
+                "It is not the time to decide winner/looser",
+            ));
         }
 
         let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
@@ -193,30 +197,5 @@ impl Parity {
             "odd" => Ok(Parity::Odd),
             _ => Err(ValidationError::new("input is not \"even\" or \"odd\"")),
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ValidationError {
-    pub detail: String,
-}
-
-impl ValidationError {
-    fn new(detail: &str) -> ValidationError {
-        ValidationError {
-            detail: String::from(detail),
-        }
-    }
-}
-
-impl fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.detail)
-    }
-}
-
-impl error::Error for ValidationError {
-    fn description(&self) -> &str {
-        &self.detail.as_str()
     }
 }

@@ -1,6 +1,7 @@
 use crate::game::{Game};
 
 mod game;
+mod errors;
 
 fn main() {
 	let mut game = Game::new(String::from("Lol"), String::from("Kek"));
