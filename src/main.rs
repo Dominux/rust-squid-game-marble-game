@@ -1,18 +1,11 @@
-use crate::game::{Game, Player};
+use crate::game::{Game};
 
 mod game;
 
 fn main() {
-	let player1 = Player::new();
-	let player2 = Player::new();
-	let mut game = Game::start(&mut player1, &mut player2);
-	
-	loop {
-		player1.make_move(&mut game);
-		player2.make_move(&mut game);
-		match game.end_move() {
-			None => (),
-			_ => break,
-		}
-	}
+	let mut game = Game::new(String::from("Lol"), String::from("Kek"));
+	game.riddler_move(25);
+	game.guesser_move("even", 100);
+	game.decision_move();
+	println!("{:?}", game.state);
 }
