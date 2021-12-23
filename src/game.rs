@@ -1,14 +1,24 @@
-use std::mem;
+use std::{
+    error,
+    fmt::{self},
+    mem::{self, swap},
+};
 
 pub struct Player {
     pub name: String,
     marbles_amount: usize,
+    role: Role,
+}
+
+enum Role {
+    Riddler,
+    Guesser,
 }
 
 pub struct Game {
     pub state: State,
-    riddler: Option<Player>,
-    guesser: Option<Player>,
+    player1: Option<Player>,
+    player2: Option<Player>,
     riddler_parity: Option<Parity>,
     guessed_parity: Option<Parity>,
     bet: Option<usize>,
@@ -18,13 +28,15 @@ impl Game {
     pub fn new(player1_name: String, player2_name: String) -> Game {
         Game {
             state: State::PendingBoth,
-            riddler: Some(Player {
+            player1: Some(Player {
                 name: player1_name,
                 marbles_amount: 100,
+                role: Role::Riddler,
             }),
-            guesser: Some(Player {
+            player2: Some(Player {
                 name: player2_name,
                 marbles_amount: 100,
+                role: Role::Guesser,
             }),
             riddler_parity: None,
             guessed_parity: None,
@@ -32,65 +44,121 @@ impl Game {
         }
     }
 
-    pub fn riddler_move(&mut self, marbles_amount: usize) {
-		// TODO: validation
+    pub fn riddler_move(&mut self, marbles_amount: usize) -> Result<(), ValidationError> {
+        // Validation
+        let riddler = if matches!(self.player1.as_ref().unwrap().role, Role::Riddler) {
+            self.player1.as_ref().unwrap()
+        } else {
+            self.player2.as_ref().unwrap()
+        };
+        if marbles_amount > riddler.marbles_amount {
+            return Err(ValidationError::new(
+                format!(
+                    "Marbles amount is to big for you, you have only {}",
+                    riddler.marbles_amount
+                )
+                .as_str(),
+            ));
+        }
+
         match self.state {
             State::PendingBoth => self.state = State::PendingGuesser,
             State::PendingRiddler => self.state = State::ReadyToDecision,
-            _ => return,
+            _ => return Err(ValidationError::new("It is not the riddler move's time")),
         }
 
-		self.riddler_parity = Some(Parity::from_number(marbles_amount));
+        self.riddler_parity = Some(Parity::from_number(marbles_amount));
+        Ok(())
     }
 
-    pub fn guesser_move(&mut self, guessed_parity: &str, bet: usize) {
-		// TODO: validation
-		let parity = match Parity::from_string(guessed_parity) {
-			Ok(r) => r,
-			Err(_) => return,
-		};
+    pub fn guesser_move(
+        &mut self,
+        guessed_parity: &str,
+        bet: usize,
+    ) -> Result<(), ValidationError> {
+        // Validation
+        let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
+            [self.player1.as_ref().unwrap(), self.player2.as_ref().unwrap()]
+        } else {
+            [self.player2.as_ref().unwrap(), self.player1.as_ref().unwrap()]
+        };
+        if bet > guesser.marbles_amount {
+            return Err(ValidationError::new(
+                format!(
+                    "Bet is too big for you, you have only {}",
+                    guesser.marbles_amount
+                )
+                .as_str(),
+            ));
+        }
+        if bet > riddler.marbles_amount {
+            return Err(ValidationError::new(
+                format!(
+                    "Bet is too big for riddler, he has only {}",
+                    riddler.marbles_amount
+                )
+                .as_str(),
+            ));
+        }
+        let parity = Parity::from_string(guessed_parity)?;
 
         match self.state {
             State::PendingBoth => self.state = State::PendingRiddler,
             State::PendingGuesser => self.state = State::ReadyToDecision,
-            _ => return,
+            _ => return Err(ValidationError::new("It is not the guesser move's time")),
         }
 
-		self.guessed_parity = Some(parity);
+        self.guessed_parity = Some(parity);
         self.bet = Some(bet);
+        Ok(())
     }
 
-    pub fn decision_move(&mut self) {
+    pub fn decision_move(&mut self) -> Result<(), ()> {
         if !matches!(self.state, State::ReadyToDecision) {
-            return;
+            return Err(());
         }
 
-        // Deciding the winner
-		let [mut winner, mut looser] = if self.riddler_parity == self.guessed_parity {
-            [mem::take(&mut self.guesser).unwrap(), mem::take(&mut self.riddler).unwrap()]
+        let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
+            [
+                mem::take(&mut self.player1).unwrap(),
+                mem::take(&mut self.player2).unwrap(),
+            ]
         } else {
-            [mem::take(&mut self.riddler).unwrap(), mem::take(&mut self.guesser).unwrap()]
+            [
+                mem::take(&mut self.player2).unwrap(),
+                mem::take(&mut self.player1).unwrap(),
+            ]
         };
 
-		looser.marbles_amount -= self.bet.unwrap();
-		winner.marbles_amount += self.bet.unwrap();
+        // Deciding the winner
+        let [mut winner, mut looser] = if self.riddler_parity == self.guessed_parity {
+            [guesser, riddler]
+        } else {
+            [riddler, guesser]
+        };
 
-		if looser.marbles_amount == 0 {
-			// Ending the game
-			self.state = State::GameOver;
-			return;
-		}
+        looser.marbles_amount -= self.bet.unwrap();
+        winner.marbles_amount += self.bet.unwrap();
 
-		// Setting roles
-		self.riddler = Some(winner);
-		self.guesser = Some(looser);
+        if looser.marbles_amount == 0 {
+            // Ending the game
+            self.state = State::GameOver;
+            return Ok(());
+        }
 
-		// Nullabling some values
-		self.riddler_parity = None;
-		self.guessed_parity = None;
-		self.bet = None;
+        // Setting roles
+		swap(&mut winner.role, &mut looser.role);
+        self.player1 = Some(winner);
+        self.player2 = Some(looser);
 
-		self.state = State::PendingBoth;
+        // Nullabling some values
+        self.riddler_parity = None;
+        self.guessed_parity = None;
+        self.bet = None;
+
+        self.state = State::PendingBoth;
+
+        Ok(())
     }
 }
 
@@ -105,23 +173,48 @@ pub enum State {
 
 #[derive(PartialEq)]
 enum Parity {
-	Even,
-	Odd
+    Even,
+    Odd,
 }
 
 impl Parity {
-	fn from_number(n: usize) -> Parity {
-		match n % 2 {
-			1 => Parity::Odd,
-			_ => Parity::Even,
-		}
-	}
+    fn from_number(n: usize) -> Parity {
+        match n % 2 {
+            1 => Parity::Odd,
+            _ => Parity::Even,
+        }
+    }
 
-	fn from_string(s: &str) -> Result<Parity, ()> {
-		match s.to_lowercase().as_str() {
-			"even" => Ok(Parity::Even),
-			"odd" => Ok(Parity::Odd),
-			_ => Err(())
-		}
-	}
+    fn from_string(s: &str) -> Result<Parity, ValidationError> {
+        match s.to_lowercase().as_str() {
+            "even" => Ok(Parity::Even),
+            "odd" => Ok(Parity::Odd),
+            _ => Err(ValidationError::new("input is not \"even\" or \"odd\"")),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ValidationError {
+    pub detail: String,
+}
+
+impl ValidationError {
+    fn new(detail: &str) -> ValidationError {
+        ValidationError {
+            detail: String::from(detail),
+        }
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.detail)
+    }
+}
+
+impl error::Error for ValidationError {
+    fn description(&self) -> &str {
+        &self.detail.as_str()
+    }
 }
