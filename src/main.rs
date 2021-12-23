@@ -1,8 +1,8 @@
 mod domains;
 mod errors;
-mod controllers;
+mod telegram;
 
 #[tokio::main]
 async fn main() {
-	controllers::telegram::main().await;
+	telegram::controllers::main().await;
 }

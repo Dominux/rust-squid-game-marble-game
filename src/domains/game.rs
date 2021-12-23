@@ -65,7 +65,7 @@ impl Game {
             _ => return Err(WrongStateError::new("It is not the riddler move's time")),
         }
 
-        self.riddler_parity = Some(Parity::from_number(marbles_amount));
+        self.riddler_parity = Some(Parity::from(marbles_amount));
         Ok(())
     }
 
@@ -183,14 +183,16 @@ enum Parity {
     Odd,
 }
 
-impl Parity {
-    fn from_number(n: usize) -> Parity {
+impl From<usize> for Parity {
+    fn from(n: usize) -> Parity {
         match n % 2 {
             1 => Parity::Odd,
             _ => Parity::Even,
         }
-    }
+	}
+}
 
+impl Parity {
     fn from_string(s: &str) -> Result<Parity, ValidationError> {
         match s.to_lowercase().as_str() {
             "even" => Ok(Parity::Even),
