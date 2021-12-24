@@ -1,52 +1,33 @@
 use teloxide::prelude::*;
-use frunk::{Generic, from_generic};
+use frunk::Generic;
+use derive_more::From;
 
 /////////////////////////////////////////////////////////////
 /// Dialog itself
 /////////////////////////////////////////////////////////////
 
-#[derive(Transition, Clone)]
+#[derive(Transition, Clone, From)]
 pub enum Dialog {
 	Start(StartState),
 	RecieveData(RecieveDataState),
-	Decision(DecisionState),
-	GameOver(GameOverState),
+	// Decision(DecisionState),
+	// GameOver(GameOverState),
 }
 
 impl Default for Dialog {
 	fn default() -> Self {
-		Self::Start(StartState)
+		Self::Start(StartState{..Default::default()})
 	}
 }
-
-impl From
 
 /////////////////////////////////////////////////////////////
 /// States
 /////////////////////////////////////////////////////////////
 
-#[derive(Clone, Generic)]
-pub struct StartState;
-
-#[teloxide(subtransition)]
-async fn start(
-	state: StartState,
-	cx: TransitionIn<AutoSend<Bot>>,
-	ans: String,
-) -> TransitionOut<Dialog> {
-	cx.answer("Sup nibba\nYou know the rules BTW, so what's ur fucking name?").await?;
-	next(RecieveDataState)
+#[derive(Clone, Generic, Default)]
+pub struct StartState {
+	pub name: Option<String>,
 }
 
 #[derive(Clone)]
 pub struct RecieveDataState;
-
-#[teloxide(subtransition)]
-async fn start(
-	state: RecieveDataState,
-	cx: TransitionIn<AutoSend<Bot>>,
-	ans: String,
-) -> TransitionOut<Dialog> {
-	cx.answer("Sup nibba\nYou know the rules BTW, so").await?;
-	next()
-}

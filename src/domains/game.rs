@@ -1,6 +1,7 @@
 use std::{mem, error};
 
-use crate::errors::{ValidationError, WrongStateError};
+// use crate::errors::{ValidationError, WrongStateError};
+use crate::domains::errors::*;
 
 pub struct Player {
     pub name: String,
