@@ -1,6 +1,6 @@
-use std::{mem, error};
+use std::mem;
 
-use crate::errors::{ValidationError, WrongStateError};
+use crate::errors::GameError;
 
 pub struct Player {
     pub name: String,
@@ -42,7 +42,7 @@ impl Game {
         }
     }
 
-    pub fn riddler_move(&mut self, marbles_amount: usize) -> Result<(), impl error::Error> {
+    pub fn riddler_move(&mut self, marbles_amount: usize) -> Result<(), GameError> {
         // Validation
         let riddler = if matches!(self.player1.as_ref().unwrap().role, Role::Riddler) {
             self.player1.as_ref().unwrap()
@@ -50,30 +50,27 @@ impl Game {
             self.player2.as_ref().unwrap()
         };
         if marbles_amount > riddler.marbles_amount {
-            return Err(ValidationError::new(
-                format!(
-                    "Marbles amount is to big for you, you have only {}",
-                    riddler.marbles_amount
-                )
-                .as_str(),
-            ));
+            return Err(GameError::ValidationError(format!(
+                "Marbles amount is to big for you, you have only {}",
+                riddler.marbles_amount
+            )));
         }
 
         match self.state {
             State::PendingBoth => self.state = State::PendingGuesser,
             State::PendingRiddler => self.state = State::ReadyToDecision,
-            _ => return Err(WrongStateError::new("It is not the riddler move's time")),
+            _ => {
+                return Err(GameError::WrongStateError(String::from(
+                    "It is not the riddler move's time",
+                )))
+            }
         }
 
         self.riddler_parity = Some(Parity::from_number(marbles_amount));
         Ok(())
     }
 
-    pub fn guesser_move(
-        &mut self,
-        guessed_parity: &str,
-        bet: usize,
-    ) -> Result<(), ValidationError> {
+    pub fn guesser_move(&mut self, guessed_parity: &str, bet: usize) -> Result<(), GameError> {
         // Validation
         let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
             [
@@ -87,29 +84,29 @@ impl Game {
             ]
         };
         if bet > guesser.marbles_amount {
-            return Err(ValidationError::new(
-                format!(
-                    "Bet is too big for you, you have only {}",
-                    guesser.marbles_amount
-                )
-                .as_str(),
-            ));
+            return Err(GameError::ValidationError(format!(
+                "Bet is too big for you, you have only {}",
+                guesser.marbles_amount
+            )));
         }
         if bet > riddler.marbles_amount {
-            return Err(ValidationError::new(
-                format!(
-                    "Bet is too big for riddler, he has only {}",
-                    riddler.marbles_amount
-                )
-                .as_str(),
-            ));
+            return Err(GameError::ValidationError(format!(
+                "Bet is too big for riddler, he has only {}",
+                riddler.marbles_amount
+            )));
         }
-        let guessed_parity = Parity::from_string(guessed_parity)?;
+        let guessed_parity = Parity::from_string(guessed_parity).map_err(|_e| {
+            GameError::ValidationError("input is not \"even\" or \"odd\"".to_string())
+        })?;
 
         match self.state {
             State::PendingBoth => self.state = State::PendingRiddler,
             State::PendingGuesser => self.state = State::ReadyToDecision,
-            _ => return Err(WrongStateError::new("It is not the guesser move's time")),
+            _ => {
+                return Err(GameError::WrongStateError(String::from(
+                    "It is not the guesser move's time",
+                )))
+            }
         }
 
         self.guessed_parity = Some(guessed_parity);
@@ -117,11 +114,11 @@ impl Game {
         Ok(())
     }
 
-    pub fn decision_move(&mut self) -> Result<(), impl error::Error> {
+    pub fn decision_move(&mut self) -> Result<(), GameError> {
         if !matches!(self.state, State::ReadyToDecision) {
-            return Err(WrongStateError::new(
+            return Err(GameError::WrongStateError(String::from(
                 "It is not the time to decide winner/looser",
-            ));
+            )));
         }
 
         let [guesser, riddler] = if matches!(self.player1.as_ref().unwrap().role, Role::Guesser) {
@@ -191,11 +188,11 @@ impl Parity {
         }
     }
 
-    fn from_string(s: &str) -> Result<Parity, ValidationError> {
+    fn from_string(s: &str) -> Result<Parity, ()> {
         match s.to_lowercase().as_str() {
             "even" => Ok(Parity::Even),
             "odd" => Ok(Parity::Odd),
-            _ => Err(ValidationError::new("input is not \"even\" or \"odd\"")),
+            _ => Err(()),
         }
     }
 }
